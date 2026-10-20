@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { LocalModels } from '../local-models/manager.mjs'
 const root=await mkdtemp(join(tmpdir(),'portable-engine-smoke-'))
 const manager=new LocalModels(root)
+let lastProgress=0
+manager.on('change',()=>{if(Date.now()-lastProgress>10000){lastProgress=Date.now();console.log(JSON.stringify(manager.snapshot().job || {loading:manager.loading,active:manager.active,error:manager.lastError}))}})
 try {
   await manager.init()
   const repo='Qwen/Qwen3-0.6B-GGUF'

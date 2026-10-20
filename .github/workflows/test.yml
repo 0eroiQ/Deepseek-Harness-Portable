@@ -1,5 +1,11 @@
 name: test
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: test-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   portable:
     env:
@@ -44,6 +50,19 @@ jobs:
         if: runner.os == 'macOS'
         timeout-minutes: 12
         run: ./runtimes/macos-arm64/node/bin/node scripts/tests/smoke-local-engine.mjs
+      - name: Install browser test driver
+        if: runner.os == 'macOS'
+        run: ./runtimes/macos-arm64/node/bin/node ./runtimes/macos-arm64/node/lib/node_modules/npm/bin/npm-cli.js install --prefix temp/ui-tools --no-save --no-audit --no-fund playwright@1.56.1
+      - name: Native local models UI smoke
+        if: runner.os == 'macOS'
+        timeout-minutes: 3
+        run: ./runtimes/macos-arm64/node/bin/node scripts/tests/smoke-local-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'macOS'
+        with:
+          name: local-models-ui
+          path: temp/ui-artifacts/
+          if-no-files-found: ignore
       - name: Doctor
         shell: pwsh
         run: |
