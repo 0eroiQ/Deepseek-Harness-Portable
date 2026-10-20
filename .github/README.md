@@ -8,13 +8,13 @@
 
 Run the official DeepSeek Harness from one self-contained folder on an internal disk, USB drive, or external SSD. Your runtimes stay isolated by operating system while chats, settings, skills, plugins, and credentials travel with you.
 
-[![Latest release](https://img.shields.io/github/v/release/techjarves/Deepseek-Harness-Portable?display_name=tag&style=flat-square&color=2563eb)](https://github.com/techjarves/Deepseek-Harness-Portable/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/0eroiQ/Deepseek-Harness-Portable?display_name=tag&style=flat-square&color=2563eb)](https://github.com/0eroiQ/Deepseek-Harness-Portable/releases/latest)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-0f172a?style=flat-square)](#supported-platforms)
 [![Architecture](https://img.shields.io/badge/CPU-x64%20%7C%20arm64-64748b?style=flat-square)](#supported-platforms)
-[![Cross-platform tests](https://img.shields.io/github/actions/workflow/status/techjarves/Deepseek-Harness-Portable/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/techjarves/Deepseek-Harness-Portable/actions/workflows/test.yml)
+[![Cross-platform tests](https://img.shields.io/github/actions/workflow/status/0eroiQ/Deepseek-Harness-Portable/test.yml?branch=main&style=flat-square&label=tests)](https://github.com/0eroiQ/Deepseek-Harness-Portable/actions/workflows/test.yml)
 [![Watch demo](https://img.shields.io/badge/Watch-Demo-FF0000?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/nyTJ-1sqkVU)
 
-[**Download latest release**](https://github.com/techjarves/Deepseek-Harness-Portable/releases/latest/download/deepseek-harness-portable.zip) · [**Watch walkthrough**](https://youtu.be/nyTJ-1sqkVU) · [**Quick start**](#quick-start) · [**How portability works**](#how-portability-works) · [**Troubleshooting**](#troubleshooting)
+[**Download latest release**](https://github.com/0eroiQ/Deepseek-Harness-Portable/releases/latest/download/deepseek-harness-portable.zip) · [**Watch walkthrough**](https://youtu.be/nyTJ-1sqkVU) · [**Quick start**](#quick-start) · [**How portability works**](#how-portability-works) · [**Troubleshooting**](#troubleshooting)
 
 </div>
 
@@ -61,7 +61,7 @@ DeepSeek Harness normally depends on a local Node.js environment and stores host
 
 ## Quick start
 
-Download [`deepseek-harness-portable.zip`](https://github.com/techjarves/Deepseek-Harness-Portable/releases/latest/download/deepseek-harness-portable.zip), extract it, and run the launcher for the current operating system.
+Download [`deepseek-harness-portable.zip`](https://github.com/0eroiQ/Deepseek-Harness-Portable/releases/latest/download/deepseek-harness-portable.zip), extract it, and run the launcher for the current operating system.
 
 ### Windows
 
@@ -231,7 +231,7 @@ Every source change is tested through GitHub Actions on:
 
 The suite covers manifest integrity, clean installation, launcher behavior, runtime isolation, checksum validation, chat-path migration, multi-frame Zstandard history preservation, and CLI startup.
 
-[View the cross-platform test history →](https://github.com/techjarves/Deepseek-Harness-Portable/actions/workflows/test.yml)
+[View the cross-platform test history →](https://github.com/0eroiQ/Deepseek-Harness-Portable/actions/workflows/test.yml)
 
 ## Upstream project
 
@@ -245,6 +245,30 @@ This repository is an independent portability layer and is not the upstream Deep
 
 **One folder. Three operating systems. Your Harness workspace everywhere.**
 
-[Download](https://github.com/techjarves/Deepseek-Harness-Portable/releases/latest) · [Report an issue](https://github.com/techjarves/Deepseek-Harness-Portable/issues) · [View releases](https://github.com/techjarves/Deepseek-Harness-Portable/releases)
+[Download](https://github.com/0eroiQ/Deepseek-Harness-Portable/releases/latest) · [Report an issue](https://github.com/0eroiQ/Deepseek-Harness-Portable/issues) · [View releases](https://github.com/0eroiQ/Deepseek-Harness-Portable/releases)
 
 </div>
+
+
+## Local models — no separate model app
+
+Start normally, then open **Settings → Models → Local models**.
+
+- **For this computer** shows recommended GGUF models, sorted by the current computer’s RAM.
+- **Browse models** searches public Hugging Face GGUF repositories and lists verified single-file text downloads, quantization sizes and RAM estimates.
+- **Download** saves a checksum-verified model under `models/local/` on this drive. Interrupted downloads resume.
+- **Downloaded → Use model** installs the pinned llama.cpp engine for this platform and loads the model. Then select the model under **Local models** in the existing chat model picker.
+- Standard, PTC, Minimal and Creator keep their existing behavior and permissions. Model tool-calling reliability varies.
+- **Stop model** releases memory; **Delete** removes that model from the drive. Closing the portable app stops its engine.
+
+No cloud API key, Ollama, Python, Homebrew or system-wide model installation is required. Internet is needed for catalog searches and initial downloads. Inference runs locally after installation. Network-enabled tools remain subject to Harness permissions.
+
+This version supports Apple Silicon macOS with Metal, Linux x64 CPU, and Windows x64 CPU. An 8K context is used to keep laptop memory use predictable. RAM labels are estimates including working buffers and room for the app; free memory, GPU capacity and model architecture also affect success. Files larger than the machine’s estimated budget are disabled. Moving the USB drive to another supported computer recalculates the recommendations.
+
+The browser shows the available GGUF subset, not every AI model on the internet. Split GGUF models, vision projector files, access-gated downloads and models requiring other inference engines are not supported in this first version. Check each model’s card/licence before downloading. Existing Ollama models are not automatically imported.
+
+### Updating an existing USB installation
+
+Close Harness first. Download this repository’s ZIP and replace the three launchers and the `scripts/` directory on the existing drive. Keep `data/`, `models/`, `state/` and `runtimes/` to preserve accounts, sessions and models. Do not use the reset script to upgrade. Alternatively, extract the ZIP into a new folder and run its launcher.
+
+The Local Models plugin is shipped in `scripts/local-models/` and copied into the runtime at each Web launch. It uses a separate generated overlay; it does not rewrite user provider settings or upstream UI files. Runtime reinstall/update restores the plugin on the next launch.

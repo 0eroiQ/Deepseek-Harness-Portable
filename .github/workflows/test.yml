@@ -33,6 +33,17 @@ jobs:
           elseif ("${{ runner.os }}" -eq "macOS") { & ./runtimes/macos-arm64/node/bin/node scripts/tests/test-portable.mjs }
           else { & ./runtimes/linux-x64/node/bin/node scripts/tests/test-portable.mjs }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Local model integration tests
+        shell: pwsh
+        run: |
+          if ("${{ runner.os }}" -eq "Windows") { & .\runtimes\windows-x64\node\node.exe --test scripts/tests/test-local-models.mjs }
+          elseif ("${{ runner.os }}" -eq "macOS") { & ./runtimes/macos-arm64/node/bin/node --test scripts/tests/test-local-models.mjs }
+          else { & ./runtimes/linux-x64/node/bin/node --test scripts/tests/test-local-models.mjs }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Live local engine smoke (Apple Silicon)
+        if: runner.os == 'macOS'
+        timeout-minutes: 12
+        run: ./runtimes/macos-arm64/node/bin/node scripts/tests/smoke-local-engine.mjs
       - name: Doctor
         shell: pwsh
         run: |

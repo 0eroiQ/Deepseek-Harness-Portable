@@ -47,3 +47,12 @@ Use `scripts/reset.bat` on Windows or `sh scripts/reset.sh` on Linux/macOS. Rese
 ## Filesystem notes
 
 The bootstrap deliberately omits Node's npm/npx/corepack symlinks and invokes npm through Node directly. A Linux external drive mounted with `noexec` must be remounted with execution enabled. Linux initial extraction needs `tar` with xz support; Ubuntu 22.04 and 24.04 provide this through `xz-utils`.
+
+
+## Built-in local models
+
+Open Settings → Models → Local models. The recommended shelf adapts to the current machine. Browse models searches Hugging Face for verified single-file text GGUF downloads; choose a file, Download, then Downloaded → Use model. Select its Local model entry in the chat composer. No separate model application or API key is required.
+
+Models are kept in `models/local/` (preserved by reset); platform-specific pinned llama.cpp binaries are installed under `runtimes/<platform>/llama-cpp/`. The engine runs on loopback with an automatically managed key and stops with the app. This release supports macOS ARM64 Metal and Windows/Linux x64 CPU. Split files, vision projectors, gated downloads and arbitrary model formats are excluded.
+
+For development, after platform setup run the bundled Node executable with `--test scripts/tests/test-local-models.mjs`. These tests cover hardware fit, downloads/resume/integrity, installed metadata, access guards and real Harness protocol/tool-call translation. They do not substitute for a real model inference smoke test on the target machine.

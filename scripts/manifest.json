@@ -40,8 +40,8 @@
     "sha256": "b086d9f0e655a482a60918ef7c353c0109d352cad8ea3e44d5ff15adc4604be8"
   },
   "release": {
-    "repository": "techjarves/deepseek-harness-portable",
-    "manifestUrl": "https://github.com/techjarves/deepseek-harness-portable/releases/latest/download/manifest.json",
+    "repository": "0eroiQ/Deepseek-Harness-Portable",
+    "manifestUrl": "https://github.com/0eroiQ/Deepseek-Harness-Portable/releases/latest/download/manifest.json",
     "autoUpdateHours": 24
   }
 }
