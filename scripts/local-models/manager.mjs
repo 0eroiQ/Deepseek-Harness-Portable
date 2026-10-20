@@ -143,7 +143,7 @@ export class LocalModels extends EventEmitter {
       child.once('error',e=>{failure=e});child.once('exit',code=>{if(this.child===child){this.child=null;this.active=null;if(code && !this.closed)this.lastError=`Local engine exited (${code}). ${tail.slice(-1000)}`;this.emit('change')}})
       const deadline=Date.now()+180000
       while(Date.now()<deadline) {
-        if(failure||child.exitCode!==null||this.closed)throw failure || new Error(`Local engine could not load the model. ${tail.slice(-1500)}`)
+        if(failure||child.exitCode!==null||child.signalCode!==null||this.closed)throw failure || new Error(`Local engine could not load the model. ${tail.slice(-1500)}`)
         try{const r=await fetch(`http://127.0.0.1:${port}/health`,{signal:AbortSignal.timeout(1500)});if(r.ok){this.active=id;return}}catch{}
         await delay(500)
       }

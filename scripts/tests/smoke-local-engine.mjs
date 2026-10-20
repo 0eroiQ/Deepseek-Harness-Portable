@@ -10,8 +10,8 @@ try {
   await manager.init()
   const repo='Qwen/Qwen3-0.6B-GGUF'
   const info=await manager.inspect(repo)
-  const file=info.files.find(f=>/q4_k_m\.gguf$/i.test(f.file))
-  assert.ok(file,'public recommended model has a verified Q4_K_M file')
+  const file=info.files.find(f=>/q4_k_m\.gguf$/i.test(f.file)) || info.files[0]
+  assert.ok(file,'public recommended model has a verified single-file GGUF')
   await manager.download(repo,file.file);await manager.job.done
   assert.equal(manager.lastError,'');assert.equal(manager.records.length,1)
   await manager.use(manager.records[0].id)

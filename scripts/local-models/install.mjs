@@ -6,6 +6,6 @@ export function installLocalModels(root,app,state) {
   mkdirSync(destination,{recursive:true})
   cpSync(join(root,'scripts','local-models'),destination,{recursive:true})
   const overlay=join(state,'local-models.patch.yml')
-  writeFileSync(overlay,JSON.stringify([{insert:[{id:'portable-local-models',name:'@portable/local-models',config:{root}}]}],null,2))
+  writeFileSync(overlay,JSON.stringify([{id:'ui-settings-models',config:{credentialOnboarding:false}},{insert:[{id:'portable-local-models',name:'@portable/local-models',config:{root}}]}],null,2))
   return overlay
 }
