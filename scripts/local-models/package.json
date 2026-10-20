@@ -3,6 +3,22 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.mjs",
-  "exports": {".": "./index.mjs", "./client": "./client.js", "./package.json": "./package.json"},
-  "dsh": {"client": {"inject": ["@deepseek-ai/dsh-client-ui-settings-models"], "platform": "web"}}
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.7-rc.2",
+    "@earendil-works/pi-ai": "*"
+  }
 }

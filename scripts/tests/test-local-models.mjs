@@ -98,3 +98,18 @@ test('client mounts in the native Models slot with accessible catalog controls',
   plugin.apply({slots:{inject(name,fn){assert.equal(name,'settings.models.footer');fn()},register(spec,c){assert.equal(spec.id,'portable-local-models');component=c}}})
   const tree=JSON.stringify(component());assert.match(tree,/Local models/);assert.match(tree,/Browse models/);assert.match(tree,/For this computer/);assert.match(tree,/aria-label/)
 })
+
+test('portable installer declares the plugin in the profile without replacing user configuration',async()=>{
+  const {cp}=await import('node:fs/promises');const dir=await fixture()
+  try{
+    await mkdir(join(dir,'scripts'),{recursive:true});await cp(new URL('../local-models/',import.meta.url),join(dir,'scripts/local-models'),{recursive:true})
+    const home=join(dir,'data/dsh-home');const profile=join(home,'profiles/web');await mkdir(profile,{recursive:true})
+    const user={name:'custom-web',dependencies:{'some-user-plugin':'1.2.3'},dsh:{profile:{bundles:['user-bundle']}}}
+    await writeFile(join(profile,'package.json'),JSON.stringify(user));await writeFile(join(profile,'cordis.patch.yml'),'# user providers must stay unchanged\n')
+    installLocalModels(dir,join(dir,'runtime/dsh'),join(dir,'state'),home)
+    const saved=JSON.parse(await readFile(join(profile,'package.json'),'utf8'))
+    assert.equal(saved.dependencies['some-user-plugin'],'1.2.3');assert.equal(saved.dependencies['@portable/local-models'],'file:../../../../scripts/local-models');assert.deepEqual(saved.dsh,user.dsh)
+    assert.equal(await readFile(join(profile,'cordis.patch.yml'),'utf8'),'# user providers must stay unchanged\n')
+    assert.ok(existsSync(join(profile,'node_modules/@portable/local-models/client.js')))
+  }finally{await rm(dir,{recursive:true,force:true})}
+})
