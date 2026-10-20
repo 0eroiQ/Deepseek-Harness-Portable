@@ -271,4 +271,4 @@ The browser shows the available GGUF subset, not every AI model on the internet.
 
 Close Harness first. Download this repository’s ZIP and replace the three launchers and the `scripts/` directory on the existing drive. Keep `data/`, `models/`, `state/` and `runtimes/` to preserve accounts, sessions and models. Do not use the reset script to upgrade. Alternatively, extract the ZIP into a new folder and run its launcher.
 
-The Local Models plugin is shipped in `scripts/local-models/` and copied into the runtime at each Web launch. It uses a separate generated overlay; it does not rewrite user provider settings or upstream UI files. Runtime reinstall/update restores the plugin on the next launch.
+The Local Models plugin is shipped in `scripts/local-models/` and copied into the runtime and Web profile at each launch. Its file dependency is declared in the profile manifest while preserving user dependencies and bundles. It uses a separate generated overlay; it does not rewrite user provider settings or upstream UI files. Runtime reinstall/update restores the plugin on the next launch.
