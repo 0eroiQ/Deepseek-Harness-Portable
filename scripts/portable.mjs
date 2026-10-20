@@ -3,6 +3,7 @@ import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync
 import { join, resolve } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { migratePortableSessions } from './session-portability.mjs'
+import { installLocalModels } from './local-models/install.mjs'
 
 function fail(message) { throw new Error(message) }
 function log(message) { process.stdout.write(`[portable] ${message}\n`) }
@@ -204,6 +205,10 @@ async function launch(dshArgs) {
   if (!installed()) setup()
   secureCredentialFile()
   const web = dshArgs[0] === 'web' || (dshArgs[0] === '--profile' && dshArgs[1] === 'web')
+  if (web && !dshArgs.includes('--help') && !dshArgs.includes('-h')) {
+    const overlay = installLocalModels(root, app, state)
+    dshArgs = [...dshArgs, '--patch', overlay]
+  }
   const handoffBrowser = web && !dshArgs.includes('--no-open') && !dshArgs.includes('--help') && !dshArgs.includes('-h')
   if (handoffBrowser) return launchWebWithHostBrowser([...dshArgs, '--no-open'])
   const result = spawnSync(node, [dshBin, ...dshArgs], { stdio: 'inherit', cwd: process.cwd(), env })
