@@ -10,7 +10,7 @@ export function prepareCompletion(body, machine) {
   const { maxTokens } = inferenceLimits(machine)
   const requested = Number(body.max_tokens ?? body.max_completion_tokens ?? maxTokens)
   body.max_tokens = Number.isFinite(requested) && requested > 0
-    ? Math.min(Math.floor(requested), maxTokens)
+    ? Math.max(1, Math.min(Math.floor(requested), maxTokens))
     : maxTokens
   delete body.max_completion_tokens
   body.chat_template_kwargs = { ...body.chat_template_kwargs, enable_thinking: false }
