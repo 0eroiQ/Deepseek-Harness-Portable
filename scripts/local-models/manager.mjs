@@ -12,14 +12,15 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { downloadFile, availableBytes } from './download.mjs'
 import { recommended, validateRepo, ggufFiles } from './catalog.mjs'
+import { inferenceLimits } from './limits.mjs'
 const GiB = 1024 ** 3
 export function machineInfo() {
   const target = ({'darwin-arm64':'macos-arm64','linux-x64':'linux-x64','win32-x64':'windows-x64'})[`${platform()}-${arch()}`]
   return { target, platform:platform(), arch:arch(), ramGB: Math.round(totalmem()/GiB), freeGB:Math.round(freemem()/GiB), cpu:cpus()[0]?.model || arch(), acceleration:platform()==='darwin' && arch()==='arm64' ? 'Apple Metal' : 'CPU' }
 }
 export function fitFor(size, machine = machineInfo()) {
-  // 8K context, model working buffers and room for the OS/app; an estimate, not a guarantee.
-  const neededGB = Math.ceil(size / GiB * 1.25 + 4)
+  // Context, model working buffers and room for the OS/app; an estimate, not a guarantee.
+  const neededGB = Math.ceil(size / GiB * 1.25 + (machine.ramGB >= 16 ? 5 : 4))
   return { neededGB, fits:neededGB <= machine.ramGB, note:neededGB <= machine.ramGB ? `Estimated ${neededGB} GB RAM · fits this computer` : `Estimated ${neededGB} GB RAM · larger than this computer` }
 }
 async function json(url) {
@@ -166,7 +167,7 @@ export class LocalModels extends EventEmitter {
       const exe=this.executable || (existsSync(join(this.runtimeDir,'installed.json')) ? await findExecutable(join(this.runtimeDir,'bin')) : null)
       if(!exe)throw new Error('Click Use model in Settings → Models to install the local engine first.')
       const port=await freePort();this.port=port;this.engineKey=randomBytes(24).toString('hex')
-      const args=['--model',join(this.modelsDir,`${id}.gguf`),'--alias',id,'--host','127.0.0.1','--port',String(port),'--ctx-size','8192','--parallel','1','--jinja','--api-key',this.engineKey,'--no-webui','--n-gpu-layers',this.machine.acceleration==='Apple Metal'?'99':'0']
+      const args=['--model',join(this.modelsDir,`${id}.gguf`),'--alias',id,'--host','127.0.0.1','--port',String(port),'--ctx-size',String(inferenceLimits(this.machine).contextWindow),'--parallel','1','--jinja','--api-key',this.engineKey,'--no-webui','--n-gpu-layers',this.machine.acceleration==='Apple Metal'?'99':'0']
       const child=spawn(exe,args,{cwd:dirname(exe),stdio:['ignore','pipe','pipe'],windowsHide:true});this.child=child;let tail='';let failure
       const capture=c=>{tail=(tail+c).slice(-5000)};child.stdout.on('data',capture);child.stderr.on('data',capture)
       child.once('error',e=>{failure=e});child.once('exit',code=>{if(this.child===child){this.child=null;this.active=null;if(code && !this.closed)this.lastError=`Local engine exited (${code}). ${tail.slice(-1000)}`;this.emit('change')}})

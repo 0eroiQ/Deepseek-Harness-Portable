@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { LocalModels } from './manager.mjs'
+import { prepareCompletion } from './limits.mjs'
 import { registerLocalAdapter } from './adapter.mjs'
 export const name='portable-local-models'
 export const inject=['webServer','llm']
@@ -39,9 +40,8 @@ export async function apply(ctx,config={}) {
         try{
           await manager.start(body.model);manager.inference++;started=true;manager.emit('change')
           controller.signal.throwIfAborted()
-          // Keep memory use bounded and disable thinking for predictable small-model agent tests.
-          body.max_tokens=Math.min(Number(body.max_tokens||2048),2048);delete body.max_completion_tokens
-          body.chat_template_kwargs={enable_thinking:false}
+          // Match the context/output profile advertised to Harness and allocated by the engine.
+          prepareCompletion(body,manager.machine)
           const upstream=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:JSON.stringify(body),signal:controller.signal})
           res.writeHead(upstream.status,{'Content-Type':upstream.headers.get('content-type')||'application/json','Cache-Control':'no-store'})
           if(upstream.body)await pipeline(Readable.fromWeb(upstream.body),res)
