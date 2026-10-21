@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { readFile, writeFile, mkdir, stat, rm, rename, readdir, chmod, cp } from 'node:fs/promises'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, createWriteStream } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { totalmem, freemem, cpus, platform, arch } from 'node:os'
@@ -8,7 +8,9 @@ import { randomBytes, createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
-import { downloadFile } from './download.mjs'
+import { Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { downloadFile, availableBytes } from './download.mjs'
 import { recommended, validateRepo, ggufFiles } from './catalog.mjs'
 const GiB = 1024 ** 3
 export function machineInfo() {
@@ -45,7 +47,7 @@ async function freePort() {
 }
 export class LocalModels extends EventEmitter {
   constructor(root, { machine = machineInfo(), downloader = downloadFile } = {}) {
-    super();this.root=root;this.machine=machine;this.downloader=downloader;this.modelsDir=join(root,'models','local');this.runtimeDir=join(root,'runtimes',machine.target || 'unsupported','llama-cpp');this.records=[];this.job=null;this.child=null;this.active=null;this.loading=null;this.inference=0;this.closed=false;this.metadata=new Map();this.lastError=''
+    super();this.root=root;this.machine=machine;this.downloader=downloader;this.modelsDir=join(root,'models','local');this.runtimeDir=join(root,'runtimes',machine.target || 'unsupported','llama-cpp');this.records=[];this.job=null;this.child=null;this.active=null;this.loading=null;this.inference=0;this.closed=false;this.metadata=new Map();this.largeApprovals=new Set();this.lastError=''
     this.engine=JSON.parse(readFileSync(new URL('./engine.json',import.meta.url)))
   }
   async init() {
@@ -92,6 +94,32 @@ export class LocalModels extends EventEmitter {
       this.records.push({id,repo,file,revision:info.revision,size:entry.size,sha256:entry.sha256,name:`${repo.split('/')[1]} · ${file.split('/').pop().replace(/\.gguf$/i,'')}`});await this.save()
     })
   }
+  async importGGUF(input, file, size) {
+    if(typeof file!=='string'||file.length>240||/[\\/]/.test(file)||! /\.gguf$/i.test(file)||/mmproj|vision|projector|-[0-9]{5}-of-[0-9]{5}/i.test(file))throw new Error('Choose a single text-model GGUF file, not a split file or vision projector.')
+    if(!Number.isSafeInteger(size)||size<24)throw new Error('Invalid GGUF file size.')
+    const id=randomBytes(12).toString('hex');const part=join(this.modelsDir,`${id}.import-part`)
+    this.beginJob(id,'import',async(signal,progress)=>{
+      try {
+        if(await availableBytes(this.modelsDir)<size+64*1024*1024)throw new Error('Not enough free space on this drive for a copy of this model.')
+        const hash=createHash('sha256');let received=0;let header=Buffer.alloc(0)
+        const meter=new Transform({transform(chunk,_encoding,done){
+          received+=chunk.length
+          if(received>size)return done(new Error('Import exceeded the selected file size.'))
+          if(header.length<24)header=Buffer.concat([header,chunk.subarray(0,24-header.length)])
+          if(header.length>=24&&(header.toString('ascii',0,4)!=='GGUF'||![2,3].includes(header.readUInt32LE(4))||header.readBigUInt64LE(8)===0n))return done(new Error('Not a supported GGUF model file.'))
+          hash.update(chunk);progress({received,total:size,phase:'importing'});done(null,chunk)
+        }})
+        await pipeline(input,meter,createWriteStream(part,{flags:'wx'}),{signal})
+        if(received!==size)throw new Error('Import was incomplete. Please select the file again.')
+        signal.throwIfAborted();const sha256=hash.digest('hex')
+        if(this.records.some(m=>m.sha256===sha256))return
+        await rename(part,join(this.modelsDir,`${id}.gguf`))
+        this.records.push({id,file,size,sha256,name:file.replace(/\.gguf$/i,''),source:'import'});await this.save()
+      } finally {await rm(part,{force:true})}
+    })
+    await this.job.done
+    if(this.lastError)throw new Error(this.lastError)
+  }
   async cancel() {const job=this.job;if(job){job.controller.abort();await job.done}}
   async ensureEngine(signal,progress) {
     const marker=join(this.runtimeDir,'installed.json');let previous
@@ -123,6 +151,7 @@ export class LocalModels extends EventEmitter {
     await this.job.done
     if(this.lastError)throw new Error(this.lastError)
     if(!this.executable)throw new Error('Engine setup was cancelled.')
+    if(allowLarge)this.largeApprovals.add(id)
     await this.start(id)
   }
   async start(id) {
@@ -130,7 +159,7 @@ export class LocalModels extends EventEmitter {
     if(this.active===id&&this.child)return
     if(this.loading||this.inference)throw new Error('Another local model is busy. Wait for it to finish.')
     const m=this.records.find(x=>x.id===id);if(!m)throw new Error('Download this model in Settings → Models first.')
-    if(!fitFor(m.size,this.machine).fits)throw new Error('This model exceeds this computer’s estimated RAM budget. Choose a smaller model.')
+    if(!fitFor(m.size,this.machine).fits&&!this.largeApprovals.has(id))throw new Error('This model exceeds this computer’s estimated RAM budget. Choose a smaller model.')
     this.loading=id;this.lastError='';this.emit('change')
     try {
       await this.stopChild()

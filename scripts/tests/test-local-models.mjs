@@ -113,3 +113,52 @@ test('portable installer declares the plugin in the profile without replacing us
     assert.ok(existsSync(join(profile,'node_modules/@portable/local-models/client.js')))
   }finally{await rm(dir,{recursive:true,force:true})}
 })
+
+test('manual import streams, hashes and retains a model after restart without modifying the source',async()=>{
+  const {Readable}=await import('node:stream');const dir=await fixture()
+  try {
+    const m=new LocalModels(dir,{machine:{target:'macos-arm64',ramGB:8}});await m.init()
+    const data=Buffer.alloc(64);data.write('GGUF');data.writeUInt32LE(3,4);data.writeBigUInt64LE(1n,8)
+    await m.importGGUF(Readable.from([data.subarray(0,3),data.subarray(3)]),'my-model.gguf',data.length)
+    assert.equal(m.records.length,1);assert.equal(m.records[0].sha256,hash(data));assert.equal(m.records[0].source,'import')
+    assert.deepEqual(await readFile(join(m.modelsDir,m.records[0].id+'.gguf')),data)
+    await m.importGGUF(Readable.from([data]),'duplicate.gguf',data.length);assert.equal(m.records.length,1)
+    const n=new LocalModels(dir);await n.init();assert.equal(n.records[0].name,'my-model')
+    const {readdir}=await import('node:fs/promises');assert.ok(!(await readdir(m.modelsDir)).some(f=>f.endsWith('.import-part')))
+  }finally{await rm(dir,{recursive:true,force:true})}
+})
+test('manual import rejects unsupported names, bad headers and truncated uploads without installing them',async()=>{
+  const {Readable}=await import('node:stream');const dir=await fixture()
+  try {
+    const m=new LocalModels(dir);await m.init();const data=Buffer.alloc(64)
+    for(const name of ['../outside.gguf','mmproj.gguf','m-00001-of-00002.gguf','m.txt'])await assert.rejects(m.importGGUF(Readable.from([data]),name,64),/single text-model/)
+    await assert.rejects(m.importGGUF(Readable.from([data]),'bad.gguf',64),/supported GGUF/)
+    data.write('GGUF');data.writeUInt32LE(3,4);data.writeBigUInt64LE(1n,8)
+    await assert.rejects(m.importGGUF(Readable.from([data]),'short.gguf',65),/incomplete/)
+    assert.equal(m.records.length,0);const {readdir}=await import('node:fs/promises');assert.deepEqual(await readdir(m.modelsDir),[])
+  }finally{await rm(dir,{recursive:true,force:true})}
+})
+test('large model approval passes from Use into subsequent agent starts and resets after restart',async()=>{
+  const dir=await fixture()
+  try {
+    const m=new LocalModels(dir,{machine:{target:'macos-arm64',ramGB:8}});await m.init()
+    const id='2'.repeat(24);m.records=[{id,size:21*1024**3}]
+    await assert.rejects(m.use(id),/RAM budget/);await assert.rejects(m.start(id),/RAM budget/)
+    m.ensureEngine=async()=>'/test/engine'
+    // Exercise the actual start guard without spawning a process: it should reach engine discovery.
+    const actualStart=m.start.bind(m);m.start=async selected=>{assert.equal(selected,id);assert.ok(m.largeApprovals.has(id))}
+    await m.use(id,true);m.executable=null
+    await assert.rejects(actualStart(id),/install the local engine/)
+    const fresh=new LocalModels(dir,{machine:m.machine});fresh.records=m.records
+    await assert.rejects(fresh.start(id),/RAM budget/)
+  }finally{await rm(dir,{recursive:true,force:true})}
+})
+test('cancelled manual import removes partial bytes and never registers a model',async()=>{
+  const {PassThrough}=await import('node:stream');const dir=await fixture()
+  try {
+    const m=new LocalModels(dir);await m.init();const input=new PassThrough()
+    const work=m.importGGUF(input,'cancel.gguf',1024)
+    await m.cancel();await work;assert.equal(m.records.length,0)
+    const {readdir}=await import('node:fs/promises');assert.deepEqual(await readdir(m.modelsDir),[])
+  }finally{await rm(dir,{recursive:true,force:true})}
+})
