@@ -51,13 +51,17 @@ export async function apply(ctx,config={}) {
       }
       if(path==='/status'&&req.method==='GET')return respond(res,200,manager.snapshot())
       if(req.method!=='POST')return respond(res,405,{error:'POST required.'})
+      if(path==='/import'){
+        await manager.importGGUF(req,decodeURIComponent(req.headers['x-model-filename']||''),Number(req.headers['content-length']))
+        return respond(res,200,manager.snapshot())
+      }
       const body=await readBody(req)
       if(path==='/search')return respond(res,200,await manager.search(body.query||'',Math.max(0,Math.min(Number(body.offset)||0,96))))
       if(path==='/inspect')return respond(res,200,await manager.inspect(body.repo))
       if(path==='/download')await manager.download(body.repo,body.file,body.allowLarge===true)
       else if(path==='/cancel')await manager.cancel()
       else if(path==='/use'){// Do not hold the HTTP request while a model loads; status reports progress/errors.
-        manager.use(body.id).catch(e=>{manager.lastError=e.message;manager.emit('change')})
+        manager.use(body.id,body.allowLarge===true).catch(e=>{manager.lastError=e.message;manager.emit('change')})
       }
       else if(path==='/stop')await manager.stop()
       else if(path==='/remove')await manager.remove(body.id)
