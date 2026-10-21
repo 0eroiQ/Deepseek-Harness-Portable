@@ -9,6 +9,7 @@ import { installLocalModels } from '../local-models/install.mjs'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { downloadFile } from '../local-models/download.mjs'
+import { inferenceLimits, prepareCompletion } from '../local-models/limits.mjs'
 import { fitFor, LocalModels } from '../local-models/manager.mjs'
 import { validateRepo, ggufFiles } from '../local-models/catalog.mjs'
 const hash=b=>createHash('sha256').update(b).digest('hex')
@@ -20,6 +21,24 @@ if(existsSync(join(app,'node_modules'))){const state=join(root,'state',target);a
 const pluginImport=name=>import(pathToFileURL(join(pluginDir,name)).href)
 const fixture=()=>mkdtemp(join(tmpdir(),'portable-local-test-'))
 
+test('local context and completion budgets grow together on 16 GB machines',()=>{
+  assert.deepEqual(inferenceLimits({ramGB:16}),{contextWindow:16384,maxTokens:4096})
+  assert.deepEqual(inferenceLimits({ramGB:8}),{contextWindow:8192,maxTokens:2048})
+  assert.equal(prepareCompletion({}, {ramGB:16}).max_tokens,4096)
+  assert.equal(prepareCompletion({max_tokens:8192}, {ramGB:16}).max_tokens,4096)
+  assert.equal(prepareCompletion({max_completion_tokens:3000}, {ramGB:16}).max_tokens,3000)
+  for(const invalid of [-1,0,'bad',Infinity])assert.equal(prepareCompletion({max_tokens:invalid},{ramGB:16}).max_tokens,4096)
+  const body=prepareCompletion({max_tokens:32,chat_template_kwargs:{custom:true,enable_thinking:true}},{ramGB:16})
+  assert.equal(body.max_tokens,32);assert.deepEqual(body.chat_template_kwargs,{custom:true,enable_thinking:false})
+})
+test('original Qwen3 uses recommended non-thinking sampling without changing other model families',()=>{
+  const qwen={file:'Qwen3-8B-Q4_K_M.gguf'}
+  const body=prepareCompletion({temperature:0},{ramGB:16},qwen)
+  assert.equal(body.temperature,0.7);assert.equal(body.top_p,0.8);assert.equal(body.top_k,20);assert.equal(body.min_p,0)
+  assert.equal(prepareCompletion({temperature:0.4},{ramGB:16},qwen).temperature,0.4)
+  assert.equal(prepareCompletion({temperature:0},{ramGB:16},{name:'Gemma'}).temperature,0)
+  assert.equal(prepareCompletion({temperature:0},{ramGB:16},{name:'Qwen3.6-35B'}).temperature,0)
+})
 test('hardware fit changes when the same USB moves to another machine',()=>{
   assert.equal(fitFor(9*1024**3,{ramGB:8}).fits,false)
   assert.equal(fitFor(9*1024**3,{ramGB:24}).fits,true)
@@ -54,11 +73,12 @@ test('restart retains installed metadata; deletion never accepts an arbitrary pa
 test('real Harness adapter discovers local model and translates a streamed tool call',async()=>{
   // Runtime dependencies are supplied by the portable installation / CI setup step.
   const {registerLocalAdapter,providerId}=await pluginImport('adapter.mjs')
-  const m=new EventEmitter();m.records=[{id:'test-local',name:'Test GGUF'}];let adapter;let replacements=0
+  const m=new EventEmitter();m.machine={ramGB:16};m.records=[{id:'test-local',name:'Test GGUF'}];let adapter;let replacements=0
   const ctx={llm:{registerAdapter(ids,a){assert.deepEqual(ids,[providerId]);adapter=a;return {replace(){replacements++}}}},on(){}}
   registerLocalAdapter(ctx,m,'http://127.0.0.1:12345/v1','local-test-key')
   assert.equal((await adapter.listModels(providerId))[0].id,'test-local')
   const resolved=await adapter.resolveModel(providerId,'test-local');assert.ok(resolved)
+  assert.equal(resolved.context.contextWindow,16384);assert.equal(resolved.defaultMaxTokens,4096)
   const original=globalThis.fetch;let requestBody
   globalThis.fetch=async(_url,options)=>{
     requestBody=JSON.parse(options.body);assert.equal(options.headers.get ? options.headers.get('authorization') : options.headers.Authorization,'Bearer local-test-key')

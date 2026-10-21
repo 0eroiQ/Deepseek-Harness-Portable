@@ -1,17 +1,17 @@
 {
-  "version": "b11763",
+  "version": "b11669",
   "targets": {
     "macos-arm64": {
-      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11763/llama-b11763-bin-macos-arm64.tar.gz",
-      "sha256": "3a7c773620d9608eb1347d79a97264e1ac8028efe419e790d13a377cf6923c5d"
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11669/llama-b11669-bin-macos-arm64.tar.gz",
+      "sha256": "dbed55493d72bc1ba2babc8770d669c2289b5bc4ee9fb2a4dfc158d45b7d13fd"
     },
     "linux-x64": {
-      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11763/llama-b11763-bin-ubuntu-x64.tar.gz",
-      "sha256": "40927ee4e8149d4e6704236614910c3c306ba70ce15b5d3688bb142900ad45d4"
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11669/llama-b11669-bin-ubuntu-x64.tar.gz",
+      "sha256": "cf07c1c112d709bd67e522017471de57ed0ec8bea031d732c5422351c07f65ac"
     },
     "windows-x64": {
-      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11763/llama-b11763-bin-win-cpu-x64.zip",
-      "sha256": "a24504506cd03a352f4990c5f3cbff347eff3a2cf7ec15038835aa690b73d0ad"
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11669/llama-b11669-bin-win-cpu-x64.zip",
+      "sha256": "37b3efcf962847ca869745fd4ccf7f5e7e8dacfeff9fa3523b4ca8cdc66d632b"
     }
   }
 }
