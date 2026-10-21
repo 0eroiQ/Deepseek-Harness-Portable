@@ -70,7 +70,7 @@ test('real Harness adapter discovers local model and translates a streamed tool 
   registerLocalAdapter(ctx,m,'http://127.0.0.1:12345/v1','local-test-key')
   assert.equal((await adapter.listModels(providerId))[0].id,'test-local')
   const resolved=await adapter.resolveModel(providerId,'test-local');assert.ok(resolved)
-  const listed=(await adapter.listModels(providerId))[0];assert.equal(listed.contextWindow,16384);assert.equal(listed.maxTokens,4096)
+  assert.equal(resolved.context.contextWindow,16384);assert.equal(resolved.defaultMaxTokens,4096)
   const original=globalThis.fetch;let requestBody
   globalThis.fetch=async(_url,options)=>{
     requestBody=JSON.parse(options.body);assert.equal(options.headers.get ? options.headers.get('authorization') : options.headers.Authorization,'Bearer local-test-key')
