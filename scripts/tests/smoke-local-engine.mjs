@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { prepareCompletion } from '../local-models/limits.mjs'
 import { LocalModels, machineInfo } from '../local-models/manager.mjs'
 const root=await mkdtemp(join(tmpdir(),'portable-engine-smoke-'))
 // A tiny fixture model lets CI exercise the 16 GB profile without a large RAM allocation.
@@ -18,11 +19,12 @@ try {
   await manager.download(repo,file.file);await manager.job.done
   assert.equal(manager.lastError,'');assert.equal(manager.records.length,1)
   await manager.use(manager.records[0].id)
-  const response=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:JSON.stringify({model:manager.active,messages:[{role:'user',content:'Say READY.'}],max_tokens:32,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
-  assert.equal(response.status,200,await response.clone().text());const reply=await response.json();assert.ok(reply.choices[0].message.content)
-  const tools=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:JSON.stringify({model:manager.active,messages:[{role:'user',content:'Use read_file to read README.md.'}],tools:[{type:'function',function:{name:'read_file',description:'Read a project file',parameters:{type:'object',properties:{path:{type:'string'}},required:['path']}}}],tool_choice:{type:'function',function:{name:'read_file'}},max_tokens:256,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
+  const completion=body=>JSON.stringify(prepareCompletion({...body,seed:42},manager.machine,manager.records[0]))
+  const response=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:completion({model:manager.active,messages:[{role:'user',content:'Say READY.'}],max_tokens:32,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
+  assert.equal(response.status,200,await response.clone().text());const reply=await response.json();assert.match(reply.choices[0].message.content,/READY/i,JSON.stringify(reply))
+  const tools=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:completion({model:manager.active,messages:[{role:'user',content:'Use read_file to read README.md.'}],tools:[{type:'function',function:{name:'read_file',description:'Read a project file',parameters:{type:'object',properties:{path:{type:'string'}},required:['path']}}}],tool_choice:{type:'function',function:{name:'read_file'}},max_tokens:256,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
   assert.equal(tools.status,200,await tools.clone().text());const called=await tools.json();assert.equal(called.choices[0].message.tool_calls?.[0]?.function.name,'read_file',JSON.stringify(called))
-  const longReply=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:JSON.stringify({model:manager.active,messages:[{role:'user',content:'sample '.repeat(8500)+'\nReply READY.'}],max_tokens:32,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
+  const longReply=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:completion({model:manager.active,messages:[{role:'user',content:'sample '.repeat(8500)+'\nReply READY.'}],max_tokens:32,temperature:0,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(120000)})
   assert.equal(longReply.status,200,await longReply.clone().text());const longResult=await longReply.json()
   assert.ok(longResult.usage.prompt_tokens>8192,'regression prompt exceeds the old context window')
   assert.ok(longResult.choices[0].message.content,'a larger context still produces a response')

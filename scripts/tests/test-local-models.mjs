@@ -31,6 +31,14 @@ test('local context and completion budgets grow together on 16 GB machines',()=>
   const body=prepareCompletion({max_tokens:32,chat_template_kwargs:{custom:true,enable_thinking:true}},{ramGB:16})
   assert.equal(body.max_tokens,32);assert.deepEqual(body.chat_template_kwargs,{custom:true,enable_thinking:false})
 })
+test('original Qwen3 uses recommended non-thinking sampling without changing other model families',()=>{
+  const qwen={file:'Qwen3-8B-Q4_K_M.gguf'}
+  const body=prepareCompletion({temperature:0},{ramGB:16},qwen)
+  assert.equal(body.temperature,0.7);assert.equal(body.top_p,0.8);assert.equal(body.top_k,20);assert.equal(body.min_p,0)
+  assert.equal(prepareCompletion({temperature:0.4},{ramGB:16},qwen).temperature,0.4)
+  assert.equal(prepareCompletion({temperature:0},{ramGB:16},{name:'Gemma'}).temperature,0)
+  assert.equal(prepareCompletion({temperature:0},{ramGB:16},{name:'Qwen3.6-35B'}).temperature,0)
+})
 test('hardware fit changes when the same USB moves to another machine',()=>{
   assert.equal(fitFor(9*1024**3,{ramGB:8}).fits,false)
   assert.equal(fitFor(9*1024**3,{ramGB:24}).fits,true)

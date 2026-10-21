@@ -17,3 +17,5 @@ Models above the estimated RAM budget offer **Download anyway…** and **Run any
 On computers with at least 16 GB RAM, Local Models uses a 16,384-token context and up to 4,096 output tokens per response. Smaller computers retain an 8,192-token context and 2,048-token output. Engine allocation, provider metadata and the inference relay share one profile. The larger profile increases memory use; fit estimates include additional headroom. Models must support the selected context length.
 
 After upgrading, restart the portable app and start a **new chat** so that an old conversation near its previous context limit is not replayed. Long replies can still reach the limit; this change does not provide unlimited context or guarantee compatibility with every model.
+
+For the original Qwen3 family, the relay applies the model author's non-thinking sampling defaults (temperature 0.7, top-p 0.8, top-k 20, min-p 0). Zero-temperature requests use 0.7 to avoid greedy-decoding repetition. Explicit positive temperatures are preserved. This does not change sampling for other model families.

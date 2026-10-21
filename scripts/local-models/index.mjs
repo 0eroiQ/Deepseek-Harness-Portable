@@ -41,7 +41,7 @@ export async function apply(ctx,config={}) {
           await manager.start(body.model);manager.inference++;started=true;manager.emit('change')
           controller.signal.throwIfAborted()
           // Match the context/output profile advertised to Harness and allocated by the engine.
-          prepareCompletion(body,manager.machine)
+          prepareCompletion(body,manager.machine,manager.records.find(m=>m.id===body.model))
           const upstream=await fetch(`http://127.0.0.1:${manager.port}/v1/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${manager.engineKey}`},body:JSON.stringify(body),signal:controller.signal})
           res.writeHead(upstream.status,{'Content-Type':upstream.headers.get('content-type')||'application/json','Cache-Control':'no-store'})
           if(upstream.body)await pipeline(Readable.fromWeb(upstream.body),res)
